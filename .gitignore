@@ -3,3 +3,4 @@ Makefile
 *.aux
 *.vo
 *.glob
+*.bak

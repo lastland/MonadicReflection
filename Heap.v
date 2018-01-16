@@ -22,6 +22,10 @@ Section Heap.
   Variable a : Typ.
   Definition Heap := state heap.
 
+  Definition empty : heap :=
+    {| next_addr := 0;
+       memory := emptym |}.
+
   Definition contains (r : ref a) : Heap bool :=
     h <- get ;;
     ret (match getm (memory h) (addr r) with

@@ -7,6 +7,8 @@ Open Scope monad_scope.
 
 Require Coq.Program.Wf.
 
+Set Implicit Arguments.
+
 Program Fixpoint sum_up (r : ref Int)
          (from : const Int)
          (to : {t : const Int | from <= t})
@@ -29,7 +31,7 @@ Program Fixpoint sum_dn (r : ref Int)
   match from < to with
   | true =>
     v <- #r;;
-    r ::= v + to;;
+    r ::= v + to.-1;;
     sum_up r from to.-1
   | _ => #r
   end.
