@@ -1,4 +1,5 @@
-From mathcomp Require Import ssreflect.
+From mathcomp Require Import ssreflect ssrnat.
+From MonadicEffect Require Import Trees.
 
 Require Import Program.
 
@@ -50,3 +51,31 @@ Notation "c >>= f" := (bind c f) (at level 50, left associativity).
 Notation "f =<< c" := (bind c f) (at level 51, right associativity).
 Notation "x <- c1 ;; c2" := (bind c1 (fun x => c2)) (at level 100, c1 at next level, right associativity).
 Notation "e1 ;; e2" := (_ <- e1 ;; e2) (at level 100, right associativity).
+
+Program Fixpoint relabel {A : Set} (t : Tree A) :
+  HoareState nat
+             (@top nat)
+             (Tree nat) 
+             (fun i t f => f = i + size t /\ flatten t = seq i (size t)) :=
+  match t with
+  | Leaf x =>
+    n <- get ;;
+    put (n + 1) ;;
+    ret (Leaf n)
+  | Node l r =>
+    l' <- relabel l ;;
+    r' <- relabel r ;;
+    ret (Node l' r')
+  end.
+Next Obligation.
+  case (relabel A l >>= _) => /=.
+  case=> x' n [t1] [n2] [[H0 H1] H2].
+  case: H2 => t2 [n3] [[H3 H4] [H5 H6]].  
+  rewrite H6. split => /=.
+  - rewrite -H5 H3 H0 addnA //.
+  - rewrite H1 H4 seq_split H0 //.
+Defined.
+
+Definition DST s a wp := forall p, HoareState s (fun h => wp p h) a (fun h x h' => p x h').
+
+Reset DST.

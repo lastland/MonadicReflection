@@ -2,6 +2,7 @@
 Typ.v
 Heap.v
 Loop.v
+Trees.v
 Hoare.v
-HoareExample.v
+Dijkstra.v
 MonadicReflection.v
