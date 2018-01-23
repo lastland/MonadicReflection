@@ -62,3 +62,32 @@ Next Obligation.
   - by rewrite addnA.
   - by rewrite H2 H1 seq_split.
 Defined.
+
+Reset relabel.
+
+Notation "'ST' s 'return' a 'requires' [ P ] 'ensures' [ Q ]" :=
+  (DST s a (fun p s1 => P /\ (forall c s2, Q s1 c s2 -> p c s2)))
+    (at level 99, P at next level, Q at next level).
+
+Check (ST nat return (Tree nat) requires [True] ensures [fun _ _ _ => True]).
+
+Program Fixpoint relabel {A : Set} (t : Tree A) :
+  ST nat return (Tree nat)
+                requires [True]
+                ensures [fun i t f => f = i + size t /\ flatten t = seq i (size t)] :=
+  match t with
+  | Leaf x =>
+    n <- get ;;
+    put (n + 1) ;;
+    ret (Leaf n)
+  | Node l r =>
+    l' <- relabel l ;;
+    r' <- relabel r ;;
+    ret (Node l' r')
+  end.
+Next Obligation.
+  repeat split => //. intros.
+  apply x1. split => /=; destruct H0; destruct H; subst.
+  - by rewrite addnA.
+  - by rewrite H2 H1 seq_split.
+Defined.
