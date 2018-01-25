@@ -86,8 +86,9 @@ Program Fixpoint relabel {A : Set} (t : Tree A) :
     ret (Node l' r')
   end.
 Next Obligation.
-  repeat split => //. intros.
-  apply x1. split => /=; destruct H0; destruct H; subst.
+  repeat split => //.
+  intros; destruct H0; destruct H; subst.
+  apply x1. split => /=. 
   - by rewrite addnA.
   - by rewrite H2 H1 seq_split.
 Defined.

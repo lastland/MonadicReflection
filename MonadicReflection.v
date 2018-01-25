@@ -2,6 +2,7 @@ Require Import Ascii.
 Require Import Relation_Definitions.
 
 From mathcomp Require Import ssreflect seq ssrnat.
+Set Bullet Behavior "Strict Subproofs".
 
 From ExtLib Require Import Structures.Monad.
 Import MonadNotation.
@@ -109,6 +110,9 @@ Unset Implicit Arguments.
 Class purification (A : Type) :=
   { pure : Type }.
 
+Global Polymorphic Instance unit_purification : purification (unit) :=
+  { pure := unit }.
+
 Global Instance string_purification : purification string :=
   { pure := string }.
 
@@ -140,6 +144,12 @@ Class denotation_rel (A : Type) `{purification A} :=
   { relates : prel A }.
 
 Notation "A ~ B" := (relates A B) (at level 99).
+
+Global Polymorphic Inductive unit_rel : prel unit :=
+| unit_relates : unit_rel tt tt.
+
+Global Instance unit_denotation_rel : denotation_rel unit :=
+  { relates := unit_rel }.
 
 Inductive string_rel : relation string :=
 | string_relates : forall (s : string), string_rel s s.
@@ -193,7 +203,7 @@ Section RelationLemmata.
   Context `{ denotation_rel B }.
   
   Lemma rel_ret : forall (a : |A|) (a' : A),
-      a ~ a'  -> (ret a) ~ (ret a').
+      a ~ a' -> (ret a) ~ (ret a').
   Proof.
     intros. constructor. rewrite /reflect /output' /=.
     constructor. intros. constructor; auto.
@@ -222,3 +232,58 @@ Section RelationLemmata.
     rewrite rev_cat -catA //. 
   Qed.
 End RelationLemmata.
+
+Definition empty : string := nil.
+Definition empty' : |string| := empty.
+
+Lemma empty_rel : empty ~ empty'.
+Proof. constructor. Qed.
+
+
+Lemma reify_rel : forall m (m' : Output' unit),
+    @relates (Output' unit) _ _ m m' ->
+    @relates (Output unit) _ _ m (reify m').
+Proof.
+  intros. inversion H; subst. inversion H0; subst.
+  rewrite -[m]reify_reflect.
+  specialize (H1 empty empty empty_rel).
+  constructor. move: H1. rewrite /output' /=.
+  destruct m. destruct output0. simpl.
+  destruct m'. destruct (output'0 empty) eqn:Hout.
+  rewrite /reify. simpl. rewrite Hout /=.
+  intros. inversion H1; constructor; auto.
+  inversion H7; subst. rewrite rev_cat revK. constructor.
+Qed.
+
+Lemma relates_eq : forall m m',
+    @relates (Output unit) _ _ m m' ->
+    m = m'.
+Proof.
+  intros. inversion H; subst.
+  inversion H0; subst. inversion H4; subst. inversion H3; subst.
+  destruct m. destruct m'. simpl in H1. simpl in H2. subst.
+  reflexivity.
+Qed.
+
+Lemma reify_eq :  forall m (m' : Output' unit),
+    @relates (Output' unit) _ _ m m' ->
+    m = (reify m').
+Proof.
+  intros. apply relates_eq. by apply reify_rel.
+Qed.
+
+Lemma collect_length'_prop : forall (m1' m2' : Output' unit) (m1 m2 : Output unit),
+    @relates (Output' unit) _ _ m1 m1' ->
+    @relates (Output' unit) _ _ m2 m2' ->
+    size (collect' (m1' ;; m2')) = size (collect' (m2' ;; m1')).
+Proof.
+  intros.
+  have: (m1 >>= (fun _ => m2)) ~ (m1' >>= (fun _ => m2')).
+  { apply (rel_bind unit unit) with (m:=m1)(m':=m1')(f:=fun _ => m2)(f':=fun _ => m2').
+    assumption. constructor; auto. }
+  have: (m2 >>= (fun _ => m1)) ~ (m2' >>= (fun _ => m1')).
+  { apply (rel_bind unit unit) with (m:=m2)(m':=m2')(f:=fun _ => m1)(f':=fun _ => m1').
+    assumption. constructor; auto. }
+  rewrite /collect'.
+  do 2 move /reify_eq <-. apply collect_length_prop.
+Qed.
