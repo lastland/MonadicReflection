@@ -1,5 +1,4 @@
 Require Import Ascii.
-Require Import Relation_Definitions.
 
 From mathcomp Require Import ssreflect seq ssrnat.
 Set Bullet Behavior "Strict Subproofs".
@@ -151,7 +150,7 @@ Global Polymorphic Inductive unit_rel : prel unit :=
 Global Instance unit_denotation_rel : denotation_rel unit :=
   { relates := unit_rel }.
 
-Inductive string_rel : relation string :=
+Inductive string_rel : prel string :=
 | string_relates : forall (s : string), string_rel s s.
 
 Global Instance string_denotation_rel : denotation_rel string :=
@@ -241,7 +240,7 @@ Proof. constructor. Qed.
 
 
 Lemma reify_rel : forall m (m' : Output' unit),
-    @relates (Output' unit) _ _ m m' ->
+    m ~ m' ->
     @relates (Output unit) _ _ m (reify m').
 Proof.
   intros. inversion H; subst. inversion H0; subst.
@@ -266,7 +265,7 @@ Proof.
 Qed.
 
 Lemma reify_eq :  forall m (m' : Output' unit),
-    @relates (Output' unit) _ _ m m' ->
+    m ~ m' ->
     m = (reify m').
 Proof.
   intros. apply relates_eq. by apply reify_rel.
