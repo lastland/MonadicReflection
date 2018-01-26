@@ -1,0 +1,480 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<title>MonadicReflection</title>
+</head>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+</div>
+
+<div id="main">
+
+<h1 class="libtitle">Library MonadicReflection</h1>
+
+<div class="code">
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Ascii</span>.<br/>
+
+<br/>
+<span class="id" title="var">From</span> <span class="id" title="var">mathcomp</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">ssreflect</span> <span class="id" title="var">seq</span> <span class="id" title="var">ssrnat</span>.<br/>
+<span class="id" title="keyword">Set</span> <span class="id" title="var">Bullet</span> <span class="id" title="var">Behavior</span> "Strict Subproofs".<br/>
+
+<br/>
+<span class="id" title="var">From</span> <span class="id" title="var">ExtLib</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Structures.Monad</span>.<br/>
+<span class="id" title="keyword">Import</span> <span class="id" title="var">MonadNotation</span>.<br/>
+<span class="id" title="keyword">Open</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">monad_scope</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Throughout this file, we use <span class="inlinecode"><span class="id" title="var">seq</span></span> (which is an alis for Coq's
+    builtin <span class="inlinecode"><span class="id" title="var">list</span></span>) of <span class="inlinecode"><span class="id" title="var">ascii</span></span> instead of <span class="inlinecode"><span class="id" title="var">string</span></span>, because <span class="inlinecode"><span class="id" title="var">seq</span></span> has
+    much more helpful lemmata. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">string</span> := <span class="id" title="var">seq</span> <span class="id" title="var">ascii</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab1"></a><h1 class="section">Output Monad: The Value View</h1>
+
+
+<div class="paragraph"> </div>
+
+    Let's define an <span class="inlinecode"><span class="id" title="var">Output</span></span> monad to simulate the output side
+    effects.  
+</div>
+<div class="code">
+<span class="id" title="keyword">Record</span> <span class="id" title="var">Output</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>) := <span class="id" title="var">MkOutput</span> { <span class="id" title="var">output</span> : <span class="id" title="var">A</span> * <span class="id" title="var">string</span> }.<br/>
+
+<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">MkOutput</span> {<span class="id" title="var">_</span>}.<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">output</span> {<span class="id" title="var">_</span>}.<br/>
+
+<br/>
+<span class="id" title="keyword">Instance</span> <span class="id" title="var">OutputMonad</span> : <span class="id" title="var">Monad</span> <span class="id" title="var">Output</span> :=<br/>
+&nbsp;&nbsp;{| <span class="id" title="var">ret</span>  := <span class="id" title="keyword">fun</span> (<span class="id" title="var">t</span> : <span class="id" title="keyword">Type</span>) <span class="id" title="var">x</span> =&gt; <span class="id" title="var">MkOutput</span> (<span class="id" title="var">x</span>, [::]);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">bind</span> := <span class="id" title="keyword">fun</span> (<span class="id" title="var">t</span> <span class="id" title="var">t'</span> : <span class="id" title="keyword">Type</span>) <span class="id" title="var">m</span> <span class="id" title="var">f</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> (<span class="id" title="var">a</span>, <span class="id" title="var">s</span>)  := <span class="id" title="var">output</span> <span class="id" title="var">m</span> <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> (<span class="id" title="var">b</span>, <span class="id" title="var">s'</span>) := <span class="id" title="var">output</span> (<span class="id" title="var">f</span> <span class="id" title="var">a</span>) <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput</span> (<span class="id" title="var">b</span>, <span class="id" title="var">s</span> ++ <span class="id" title="var">s'</span>)<br/>
+&nbsp;&nbsp;|}.<br/>
+</div>
+
+<div class="doc">
+As you might have seen, this implementation is quite inefficient
+    because of the <span class="inlinecode"><span class="id" title="var">app</span></span> operation. 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">out</span> (<span class="id" title="var">c</span> : <span class="id" title="var">ascii</span>) : <span class="id" title="var">Output</span> <span class="id" title="var">unit</span> :=<br/>
+&nbsp;&nbsp;<span class="id" title="var">MkOutput</span> (<span class="id" title="var">tt</span>, [:: <span class="id" title="var">c</span>]).<br/>
+
+<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">collect</span> (<span class="id" title="var">m</span> : <span class="id" title="var">Output</span> <span class="id" title="var">unit</span>) : <span class="id" title="var">string</span> :=<br/>
+&nbsp;&nbsp;<span class="id" title="var">snd</span> (<span class="id" title="var">output</span> <span class="id" title="var">m</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+However, there is something good with the representation. Namely,
+    it allows us to do equational reasoning easily. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">collect_length_prop</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> : <span class="id" title="var">Output</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">size</span> (<span class="id" title="var">collect</span> (<span class="id" title="var">m1</span> ;; <span class="id" title="var">m2</span>)) = <span class="id" title="var">size</span> (<span class="id" title="var">collect</span> (<span class="id" title="var">m2</span> ;; <span class="id" title="var">m1</span>)).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> /=. <span class="id" title="tactic">case</span> (<span class="id" title="var">output</span> <span class="id" title="var">m1</span>). <span class="id" title="tactic">case</span> (<span class="id" title="var">output</span> <span class="id" title="var">m2</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">collect</span> /= !<span class="id" title="var">size_cat</span> <span class="id" title="var">addnC</span> //.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab2"></a><h1 class="section">Output Monad: The Behavior View</h1>
+
+
+<div class="paragraph"> </div>
+
+    Let's look at another implementation of the output monad. This one
+    is more similar to the state monad we are familiar with. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Record</span> <span class="id" title="var">Output'</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>) := <span class="id" title="var">MkOutput'</span> { <span class="id" title="var">output'</span> : <span class="id" title="var">string</span> -&gt; <span class="id" title="var">A</span> * <span class="id" title="var">string</span> }.<br/>
+
+<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">MkOutput'</span> {<span class="id" title="var">_</span>}.<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">output'</span> {<span class="id" title="var">_</span>}.<br/>
+
+<br/>
+<span class="id" title="keyword">Instance</span> <span class="id" title="var">OutputMonad'</span> : <span class="id" title="var">Monad</span> <span class="id" title="var">Output'</span> :=<br/>
+&nbsp;&nbsp;{| <span class="id" title="var">ret</span>  := <span class="id" title="keyword">fun</span> (<span class="id" title="var">t</span> : <span class="id" title="keyword">Type</span>) <span class="id" title="var">x</span> =&gt; <span class="id" title="var">MkOutput'</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">x</span>, <span class="id" title="var">s</span>));<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">bind</span> := <span class="id" title="keyword">fun</span> (<span class="id" title="var">t</span> <span class="id" title="var">t'</span> : <span class="id" title="keyword">Type</span>) <span class="id" title="var">m</span> <span class="id" title="var">f</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput'</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> (<span class="id" title="var">a</span>, <span class="id" title="var">s'</span>) := <span class="id" title="var">output'</span> <span class="id" title="var">m</span> <span class="id" title="var">s</span> <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">output'</span> (<span class="id" title="var">f</span> <span class="id" title="var">a</span>) <span class="id" title="var">s'</span>)<br/>
+&nbsp;&nbsp;|}.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+This implementation is more efficient: no append. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Section</span> <span class="id" title="var">FailedAttempt</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">out'</span> (<span class="id" title="var">c</span> : <span class="id" title="var">ascii</span>) : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput'</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">tt</span>, <span class="id" title="var">c</span> :: <span class="id" title="var">s</span>)).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Though it needs to do <span class="inlinecode"><span class="id" title="var">rev</span></span> sometimes, but that normally does
+      not happen very often so this should be still more efficient
+      than our previous <span class="inlinecode"><span class="id" title="var">Output</span></span> monad. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">collect'</span> (<span class="id" title="var">m</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>) : <span class="id" title="var">string</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> <span class="id" title="var">s</span> := <span class="id" title="var">output'</span> <span class="id" title="var">m</span> [::] <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">rev</span> (<span class="id" title="var">snd</span> <span class="id" title="var">s</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Now let's prove the same lemma again. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <span class="id" title="var">collect'_length_prop</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m1</span> ;; <span class="id" title="var">m2</span>)) = <span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m2</span> ;; <span class="id" title="var">m1</span>)).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> /=. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">collect'</span> /= !<span class="id" title="var">size_rev</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">case</span> (<span class="id" title="var">output'</span> <span class="id" title="var">m1</span> [::]). <span class="id" title="tactic">case</span> (<span class="id" title="var">output'</span> <span class="id" title="var">m2</span> [::]). <span class="id" title="tactic">intros</span>.<br/>
+</div>
+
+<div class="doc">
+We are stuck here. We do not know any relation between the
+        result of <span class="inlinecode"><span class="id" title="var">output'</span></span> <span class="inlinecode"><span class="id" title="var">m1</span></span> <span class="inlinecode">[::]</span> and <span class="inlinecode"><span class="id" title="var">output'</span></span> <span class="inlinecode"><span class="id" title="var">m2</span></span> <span class="inlinecode">[::]</span> so we cannot
+        go on! And if we think about it carefully, this lemma is
+        actually not longer true, as <span class="inlinecode"><span class="id" title="var">m1</span></span> or <span class="inlinecode"><span class="id" title="var">m2</span></span> can do anything to
+        the state in it. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Abort</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+For example, we can flush the state: 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">flush</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput'</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; (<span class="id" title="var">tt</span>, [::])).<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">FailedAttempt</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The <span class="inlinecode"><span class="id" title="var">collect'_length_prop</span></span> lemma is not true in general, but it is
+    true if we assume encapsulation: if the internal state is
+    encapsulated, and all the operations on state are performed via
+    encapsulated methods such as <span class="inlinecode"><span class="id" title="var">out'</span></span> and <span class="inlinecode"><span class="id" title="var">collect'</span></span>. 
+
+<div class="paragraph"> </div>
+
+    How do we prove that? 
+</div>
+<div class="code">
+</div>
+
+<div class="doc">
+<a name="lab3"></a><h1 class="section">Monadic Reflection/Reification</h1>
+
+</div>
+<div class="code">
+<span class="id" title="keyword">Section</span> <span class="id" title="var">Reflection</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">reflect</span> (<span class="id" title="var">m</span> : <span class="id" title="var">Output</span> <span class="id" title="var">A</span>) : <span class="id" title="var">Output'</span> <span class="id" title="var">A</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> (<span class="id" title="var">a</span>, <span class="id" title="var">s</span>) := <span class="id" title="var">output</span> <span class="id" title="var">m</span> <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput'</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s'</span> =&gt; (<span class="id" title="var">a</span>, <span class="id" title="var">rev</span> <span class="id" title="var">s</span> ++ <span class="id" title="var">s'</span>)).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">reify</span> (<span class="id" title="var">m</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">A</span>) : <span class="id" title="var">Output</span> <span class="id" title="var">A</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span> (<span class="id" title="var">a</span>, <span class="id" title="var">s</span>) := <span class="id" title="var">output'</span> <span class="id" title="var">m</span> [::] <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">MkOutput</span> (<span class="id" title="var">a</span>, <span class="id" title="var">rev</span> <span class="id" title="var">s</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <span class="id" title="var">reify_reflect</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">reify</span> (<span class="id" title="var">reflect</span> <span class="id" title="var">m</span>) = <span class="id" title="var">m</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">m</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reflect</span> /<span class="id" title="var">reify</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">case</span> <span class="id" title="var">m</span>. <span class="id" title="tactic">case</span>. <span class="id" title="tactic">simpl</span>. <span class="id" title="tactic">intros</span>. <span class="id" title="tactic">f_equal</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">cats0</span> <span class="id" title="var">revK</span> //.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">Reflection</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">NewAttempt</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">out'</span> (<span class="id" title="var">c</span> : <span class="id" title="var">ascii</span>) : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">reflect</span> (<span class="id" title="var">out</span> <span class="id" title="var">c</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">collect'</span> (<span class="id" title="var">m</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>) : <span class="id" title="var">string</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">collect</span> (<span class="id" title="var">reify</span> <span class="id" title="var">m</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <span class="id" title="var">collect_length'_prop</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m1</span> ;; <span class="id" title="var">m2</span>)) = <span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m2</span> ;; <span class="id" title="var">m1</span>)).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">m1</span> <span class="id" title="var">m2</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">collect'</span> /<span class="id" title="var">reify</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">case</span> <span class="id" title="var">m1</span>. <span class="id" title="tactic">case</span> <span class="id" title="var">m2</span>. <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Abort</span>.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">NewAttempt</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Unset Implicit Arguments</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Class</span> <span class="id" title="var">purification</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>) :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">pure</span> : <span class="id" title="keyword">Type</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">unit_purification</span> : <span class="id" title="var">purification</span> (<span class="id" title="var">unit</span>) :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := <span class="id" title="var">unit</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Global Instance</span> <span class="id" title="var">string_purification</span> : <span class="id" title="var">purification</span> <span class="id" title="var">string</span> :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := <span class="id" title="var">string</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Notation</span> &quot;| A |" := (@<span class="id" title="var">pure</span> <span class="id" title="var">A</span> <span class="id" title="var">_</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 98).<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">Purification</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Variables</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Context</span> `{ <span class="id" title="var">purification</span> <span class="id" title="var">A</span> }.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Context</span> `{ <span class="id" title="var">purification</span> <span class="id" title="var">B</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">tuple_purification</span> : <span class="id" title="var">purification</span> (<span class="id" title="var">A</span> * <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := |<span class="id" title="var">A</span>| * |<span class="id" title="var">B</span>| }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">fun_purification</span> : <span class="id" title="var">purification</span> (<span class="id" title="var">A</span> -&gt; <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := |<span class="id" title="var">A</span>| -&gt; |<span class="id" title="var">B</span>| }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">output_purification</span> :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">purification</span> (<span class="id" title="var">Output</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := <span class="id" title="var">Output</span> (|<span class="id" title="var">A</span>|) }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">output'_purification</span> :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">purification</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">pure</span> := <span class="id" title="var">Output</span> (|<span class="id" title="var">A</span>|) }.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">Purification</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">prel</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>) `{<span class="id" title="var">purification</span> <span class="id" title="var">A</span>} := |<span class="id" title="var">A</span>| -&gt; <span class="id" title="var">A</span> -&gt; <span class="id" title="keyword">Prop</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Class</span> <span class="id" title="var">denotation_rel</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>) `{<span class="id" title="var">purification</span> <span class="id" title="var">A</span>} :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">relates</span> : <span class="id" title="var">prel</span> <span class="id" title="var">A</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Notation</span> &quot;A ~ B" := (<span class="id" title="var">relates</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 99).<br/>
+
+<br/>
+<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Inductive</span> <span class="id" title="var">unit_rel</span> : <span class="id" title="var">prel</span> <span class="id" title="var">unit</span> :=<br/>
+| <span class="id" title="var">unit_relates</span> : <span class="id" title="var">unit_rel</span> <span class="id" title="var">tt</span> <span class="id" title="var">tt</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Global Instance</span> <span class="id" title="var">unit_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> <span class="id" title="var">unit</span> :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">unit_rel</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Inductive</span> <span class="id" title="var">string_rel</span> : <span class="id" title="var">prel</span> <span class="id" title="var">string</span> :=<br/>
+| <span class="id" title="var">string_relates</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">s</span> : <span class="id" title="var">string</span>), <span class="id" title="var">string_rel</span> <span class="id" title="var">s</span> <span class="id" title="var">s</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Global Instance</span> <span class="id" title="var">string_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> <span class="id" title="var">string</span> :=<br/>
+&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">string_rel</span> }.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">Relation</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Variables</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Context</span> `{ <span class="id" title="var">denotation_rel</span> <span class="id" title="var">A</span> }.<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Context</span> `{ <span class="id" title="var">denotation_rel</span> <span class="id" title="var">B</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Inductive</span> <span class="id" title="var">tuple_rel</span> : <span class="id" title="var">prel</span> (<span class="id" title="var">A</span> * <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;| <span class="id" title="var">tuple_relates</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">a</span> <span class="id" title="var">a'</span> <span class="id" title="var">b</span> <span class="id" title="var">b'</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">a</span> ~ <span class="id" title="var">a'</span> -&gt; <span class="id" title="var">b</span> ~ <span class="id" title="var">b'</span> -&gt; <span class="id" title="var">tuple_rel</span> (<span class="id" title="var">a</span>, <span class="id" title="var">b</span>) (<span class="id" title="var">a'</span>, <span class="id" title="var">b'</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">tuple_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> (<span class="id" title="var">A</span> * <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">tuple_rel</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Inductive</span> <span class="id" title="var">fun_rel</span> : <span class="id" title="var">prel</span> (<span class="id" title="var">A</span> -&gt; <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;| <span class="id" title="var">fun_relates</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">f</span> <span class="id" title="var">f'</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="keyword">forall</span> <span class="id" title="var">a</span> <span class="id" title="var">a'</span>, <span class="id" title="var">a</span> ~ <span class="id" title="var">a'</span> -&gt; (<span class="id" title="var">f</span> <span class="id" title="var">a</span>) ~ (<span class="id" title="var">f'</span> <span class="id" title="var">a'</span>)) -&gt; <span class="id" title="var">fun_rel</span> <span class="id" title="var">f</span> <span class="id" title="var">f'</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global</span> <span class="id" title="var">Polymorphic</span> <span class="id" title="keyword">Instance</span> <span class="id" title="var">fun_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> (<span class="id" title="var">A</span> -&gt; <span class="id" title="var">B</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">fun_rel</span> }.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">Relation</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">OutputRelation</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <span class="id" title="var">A</span> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> `{ <span class="id" title="var">denotation_rel</span> <span class="id" title="var">A</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Inductive</span> <span class="id" title="var">output_rel</span> : <span class="id" title="var">prel</span> (<span class="id" title="var">Output</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;| <span class="id" title="var">output_relates</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">A</span> * <span class="id" title="var">string</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> (<span class="id" title="var">output</span> <span class="id" title="var">m</span>) (<span class="id" title="var">output</span> <span class="id" title="var">m'</span>) -&gt; <span class="id" title="var">output_rel</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <span class="id" title="var">output_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> (<span class="id" title="var">Output</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">output_rel</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Inductive</span> <span class="id" title="var">output'_rel</span> : <span class="id" title="var">prel</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;| <span class="id" title="var">output'_relates</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">string</span> -&gt; <span class="id" title="var">A</span> * <span class="id" title="var">string</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> (<span class="id" title="var">output'</span> (<span class="id" title="var">reflect</span> <span class="id" title="var">m</span>)) (<span class="id" title="var">output'</span> <span class="id" title="var">m'</span>) -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">output'_rel</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Global Instance</span> <span class="id" title="var">output'_denotation_rel</span> : <span class="id" title="var">denotation_rel</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">A</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="id" title="var">relates</span> := <span class="id" title="var">output'_rel</span> }.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">OutputRelation</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">RelationLemmata</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variables</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span> : <span class="id" title="keyword">Type</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> `{ <span class="id" title="var">denotation_rel</span> <span class="id" title="var">A</span> }.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Context</span> `{ <span class="id" title="var">denotation_rel</span> <span class="id" title="var">B</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <span class="id" title="var">rel_ret</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">a</span> : |<span class="id" title="var">A</span>|) (<span class="id" title="var">a'</span> : <span class="id" title="var">A</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">a</span> ~ <span class="id" title="var">a'</span> -&gt; (<span class="id" title="var">ret</span> <span class="id" title="var">a</span>) ~ (<span class="id" title="var">ret</span> <span class="id" title="var">a'</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">constructor</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reflect</span> /<span class="id" title="var">output'</span> /=.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">constructor</span>. <span class="id" title="tactic">intros</span>. <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Lemma</span> <span class="id" title="var">rel_bind</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> (<span class="id" title="var">m'</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">A</span>) <span class="id" title="var">f</span> (<span class="id" title="var">f'</span>: <span class="id" title="var">A</span> -&gt; <span class="id" title="var">Output'</span> <span class="id" title="var">B</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">m</span> ~ <span class="id" title="var">m'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">f</span> ~ <span class="id" title="var">f'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">B</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> (<span class="id" title="var">m</span> &gt;&gt;= <span class="id" title="var">f</span>) (<span class="id" title="var">m'</span> &gt;&gt;= <span class="id" title="var">f'</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">constructor</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reflect</span> /<span class="id" title="var">output'</span> /=.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">constructor</span>. <span class="id" title="tactic">intros</span>. <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">m</span>. <span class="id" title="tactic">destruct</span> <span class="id" title="var">m'</span>. <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">output0</span>. <span class="id" title="tactic">destruct</span> (<span class="id" title="var">output'0</span> <span class="id" title="var">a'</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Houtput'0</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="var">f</span> <span class="id" title="var">p</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Hf</span>. <span class="id" title="tactic">simpl</span>. <span class="id" title="tactic">destruct</span> <span class="id" title="var">output0</span>. <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="var">f'</span> <span class="id" title="var">a0</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Hf'</span>. <span class="id" title="tactic">simpl</span>. <span class="id" title="tactic">destruct</span> (<span class="id" title="var">output'1</span> <span class="id" title="var">s0</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Houtput'1</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">H3</span>; <span class="id" title="tactic">subst</span>. <span class="id" title="tactic">move</span>: <span class="id" title="var">H6</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reflect</span> /<span class="id" title="var">output'</span> /=. <span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">Hfun</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">Hfun</span>. <span class="id" title="tactic">specialize</span> (<span class="id" title="var">H6</span> <span class="id" title="var">a</span> <span class="id" title="var">a'</span> <span class="id" title="var">H5</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">Houtput'0</span> <span class="id" title="keyword">in</span> <span class="id" title="var">H6</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H6</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">H4</span>. <span class="id" title="tactic">specialize</span> (<span class="id" title="var">H7</span> <span class="id" title="var">p</span> <span class="id" title="var">a0</span> <span class="id" title="var">H12</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">move</span>: <span class="id" title="var">H7</span>. <span class="id" title="tactic">rewrite</span> <span class="id" title="var">Hf</span> <span class="id" title="var">Hf'</span> /=. <span class="id" title="tactic">move</span>=&gt;<span class="id" title="var">Hout</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">Hout</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reflect</span> /<span class="id" title="var">output'</span> /= <span class="id" title="keyword">in</span> <span class="id" title="var">H7</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">H7</span>. <span class="id" title="tactic">specialize</span> (<span class="id" title="var">H13</span> (<span class="id" title="var">rev</span> <span class="id" title="var">s</span> ++ <span class="id" title="var">a</span>) <span class="id" title="var">s0</span> <span class="id" title="var">H14</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">Houtput'1</span> <span class="id" title="keyword">in</span> <span class="id" title="var">H13</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H13</span>. <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> <span class="id" title="var">rev_cat</span> -<span class="id" title="var">catA</span> //.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">RelationLemmata</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">empty</span> : <span class="id" title="var">string</span> := <span class="id" title="var">nil</span>.<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">empty'</span> : |<span class="id" title="var">string</span>| := <span class="id" title="var">empty</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">empty_rel</span> : <span class="id" title="var">empty</span> ~ <span class="id" title="var">empty'</span>.<br/>
+<span class="id" title="keyword">Proof</span>. <span class="id" title="tactic">constructor</span>. <span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">reify_rel</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> (<span class="id" title="var">m'</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">m</span> ~ <span class="id" title="var">m'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">Output</span> <span class="id" title="var">unit</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">m</span> (<span class="id" title="var">reify</span> <span class="id" title="var">m'</span>).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H</span>; <span class="id" title="tactic">subst</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> -[<span class="id" title="var">m</span>]<span class="id" title="var">reify_reflect</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">specialize</span> (<span class="id" title="var">H1</span> <span class="id" title="var">empty</span> <span class="id" title="var">empty</span> <span class="id" title="var">empty_rel</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">constructor</span>. <span class="id" title="tactic">move</span>: <span class="id" title="var">H1</span>. <span class="id" title="tactic">rewrite</span> /<span class="id" title="var">output'</span> /=.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">m</span>. <span class="id" title="tactic">destruct</span> <span class="id" title="var">output0</span>. <span class="id" title="tactic">simpl</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">m'</span>. <span class="id" title="tactic">destruct</span> (<span class="id" title="var">output'0</span> <span class="id" title="var">empty</span>) <span class="id" title="var">eqn</span>:<span class="id" title="var">Hout</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<span class="id" title="var">reify</span>. <span class="id" title="tactic">simpl</span>. <span class="id" title="tactic">rewrite</span> <span class="id" title="var">Hout</span> /=.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H1</span>; <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">H7</span>; <span class="id" title="tactic">subst</span>. <span class="id" title="tactic">rewrite</span> <span class="id" title="var">rev_cat</span> <span class="id" title="var">revK</span>. <span class="id" title="tactic">constructor</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">relates_eq</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">Output</span> <span class="id" title="var">unit</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">m</span> <span class="id" title="var">m'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">m</span> = <span class="id" title="var">m'</span>.<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">inversion</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">subst</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H4</span>; <span class="id" title="tactic">subst</span>. <span class="id" title="tactic">inversion</span> <span class="id" title="var">H3</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> <span class="id" title="var">m</span>. <span class="id" title="tactic">destruct</span> <span class="id" title="var">m'</span>. <span class="id" title="tactic">simpl</span> <span class="id" title="keyword">in</span> <span class="id" title="var">H1</span>. <span class="id" title="tactic">simpl</span> <span class="id" title="keyword">in</span> <span class="id" title="var">H2</span>. <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">reflexivity</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">reify_eq</span> :  <span class="id" title="keyword">forall</span> <span class="id" title="var">m</span> (<span class="id" title="var">m'</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">m</span> ~ <span class="id" title="var">m'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">m</span> = (<span class="id" title="var">reify</span> <span class="id" title="var">m'</span>).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>. <span class="id" title="tactic">apply</span> <span class="id" title="var">relates_eq</span>. <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <span class="id" title="var">reify_rel</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Lemma</span> <span class="id" title="var">collect_length'_prop</span> : <span class="id" title="keyword">forall</span> (<span class="id" title="var">m1'</span> <span class="id" title="var">m2'</span> : <span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>) (<span class="id" title="var">m1</span> <span class="id" title="var">m2</span> : <span class="id" title="var">Output</span> <span class="id" title="var">unit</span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">m1</span> <span class="id" title="var">m1'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;@<span class="id" title="var">relates</span> (<span class="id" title="var">Output'</span> <span class="id" title="var">unit</span>) <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">m2</span> <span class="id" title="var">m2'</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m1'</span> ;; <span class="id" title="var">m2'</span>)) = <span class="id" title="var">size</span> (<span class="id" title="var">collect'</span> (<span class="id" title="var">m2'</span> ;; <span class="id" title="var">m1'</span>)).<br/>
+<span class="id" title="keyword">Proof</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="var">have</span>: (<span class="id" title="var">m1</span> &gt;&gt;= (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m2</span>)) ~ (<span class="id" title="var">m1'</span> &gt;&gt;= (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m2'</span>)).<br/>
+&nbsp;&nbsp;{ <span class="id" title="tactic">apply</span> (<span class="id" title="var">rel_bind</span> <span class="id" title="var">unit</span> <span class="id" title="var">unit</span>) <span class="id" title="keyword">with</span> (<span class="id" title="var">m</span>:=<span class="id" title="var">m1</span>)(<span class="id" title="var">m'</span>:=<span class="id" title="var">m1'</span>)(<span class="id" title="var">f</span>:=<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m2</span>)(<span class="id" title="var">f'</span>:=<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m2'</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">assumption</span>. <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>. }<br/>
+&nbsp;&nbsp;<span class="id" title="var">have</span>: (<span class="id" title="var">m2</span> &gt;&gt;= (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m1</span>)) ~ (<span class="id" title="var">m2'</span> &gt;&gt;= (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m1'</span>)).<br/>
+&nbsp;&nbsp;{ <span class="id" title="tactic">apply</span> (<span class="id" title="var">rel_bind</span> <span class="id" title="var">unit</span> <span class="id" title="var">unit</span>) <span class="id" title="keyword">with</span> (<span class="id" title="var">m</span>:=<span class="id" title="var">m2</span>)(<span class="id" title="var">m'</span>:=<span class="id" title="var">m2'</span>)(<span class="id" title="var">f</span>:=<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m1</span>)(<span class="id" title="var">f'</span>:=<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">m1'</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">assumption</span>. <span class="id" title="tactic">constructor</span>; <span class="id" title="tactic">auto</span>. }<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<span class="id" title="var">collect'</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">do</span> 2 <span class="id" title="tactic">move</span> /<span class="id" title="var">reify_eq</span> &lt;-. <span class="id" title="tactic">apply</span> <span class="id" title="var">collect_length_prop</span>.<br/>
+<span class="id" title="keyword">Qed</span>.<br/>
+</div>
+</div>
+
+<div id="footer">
+<hr/><a href="index.html">Index</a><hr/>This page has been generated by <a href="http://coq.inria.fr/">coqdoc</a>
+</div>
+
+</div>
+
+</body>
+</html>
