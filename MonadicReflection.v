@@ -7,20 +7,29 @@ From ExtLib Require Import Structures.Monad.
 Import MonadNotation.
 Open Scope monad_scope.
 
+(** Throughout this file, we use [seq] (which is an alis for Coq's
+    builtin [list]) of [ascii] instead of [string], because [seq] has
+    much more helpful lemmata. *)
 Definition string := seq ascii.
 
+(** * Output Monad: The Value View
+
+    Let's define an [Output] monad to simulate the output side
+    effects.  *)
 Record Output (A : Type) := MkOutput { output : A * string }.
 
 Arguments MkOutput {_}.
 Arguments output {_}.
 
 Instance OutputMonad : Monad Output :=
-  {| ret  := fun (t : Type) X => MkOutput (X, [::]);
+  {| ret  := fun (t : Type) x => MkOutput (x, [::]);
      bind := fun (t t' : Type) m f =>
-               let (a, s) := output m in
+               let (a, s)  := output m in
                let (b, s') := output (f a) in
                MkOutput (b, s ++ s')
   |}.
+(** As you might have seen, this implementation is quite inefficient
+    because of the [app] operation. *)
 
 Definition out (c : ascii) : Output unit :=
   MkOutput (tt, [:: c]).
@@ -28,6 +37,8 @@ Definition out (c : ascii) : Output unit :=
 Definition collect (m : Output unit) : string :=
   snd (output m).
 
+(** However, there is something good with the representation. Namely,
+    it allows us to do equational reasoning easily. *)
 Lemma collect_length_prop : forall (m1 m2 : Output unit),
     size (collect (m1 ;; m2)) = size (collect (m2 ;; m1)).
 Proof.
@@ -35,39 +46,65 @@ Proof.
   intros. rewrite /collect /= !size_cat addnC //.
 Qed.
 
+(** * Output Monad: The Behavior View
+
+    Let's look at another implementation of the output monad. This one
+    is more similar to the state monad we are familiar with. *)
 Record Output' (A : Type) := MkOutput' { output' : string -> A * string }.
 
 Arguments MkOutput' {_}.
 Arguments output' {_}.
 
 Instance OutputMonad' : Monad Output' :=
-  {| ret  := fun (t : Type) X => MkOutput' (fun s => (X, s));
+  {| ret  := fun (t : Type) x => MkOutput' (fun s => (x, s));
      bind := fun (t t' : Type) m f =>
                MkOutput' (fun s =>
                             let (a, s') := output' m s in
                             output' (f a) s')
   |}.
 
+(** This implementation is more efficient: no append. *)
 Section FailedAttempt.
   Definition out' (c : ascii) : Output' unit :=
     MkOutput' (fun s => (tt, c :: s)).
 
+  (** Though it needs to do [rev] sometimes, but that normally does
+      not happen very often so this should be still more efficient
+      than our previous [Output] monad. *)
   Definition collect' (m : Output' unit) : string :=
     let s := output' m [::] in
     rev (snd s).
 
-  Lemma collect_length'_prop : forall (m1 m2 : Output' unit),
+  (** Now let's prove the same lemma again. *)
+  Lemma collect'_length_prop : forall (m1 m2 : Output' unit),
       size (collect' (m1 ;; m2)) = size (collect' (m2 ;; m1)).
   Proof.
     move=>m1 m2 /=. rewrite /collect' /= !size_rev.
     case (output' m1 [::]). case (output' m2 [::]). intros.
+    (** We are stuck here. We do not know any relation between the
+        result of [output' m1 [::]] and [output' m2 [::]] so we cannot
+        go on! And if we think about it carefully, this lemma is
+        actually not longer true, as [m1] or [m2] can do anything to
+        the state in it. *)
   Abort.
+
+  (** For example, we can flush the state: *)
+  Definition flush : Output' unit :=
+    MkOutput' (fun _ => (tt, [::])).
 End FailedAttempt.
 
+(** The [collect'_length_prop] lemma is not true in general, but it is
+    true if we assume encapsulation: if the internal state is
+    encapsulated, and all the operations on state are performed via
+    encapsulated methods such as [out'] and [collect']. 
+
+    How do we prove that? *)
+(* begin hide *)
 Reset FailedAttempt.
 
 Set Implicit Arguments.
-
+(* end hide *)
+(** * Monadic Reflection/Reification *)
 Section Reflection.
   
   Variable A : Type.
