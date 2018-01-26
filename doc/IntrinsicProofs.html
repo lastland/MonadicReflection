@@ -1,0 +1,670 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<link href="coqdoc.css" rel="stylesheet" type="text/css" />
+<title>IntrinsicProofs</title>
+</head>
+
+<body>
+
+<div id="page">
+
+<div id="header">
+</div>
+
+<div id="main">
+
+<h1 class="libtitle">Library IntrinsicProofs</h1>
+
+<div class="code">
+<span class="id" title="var">From</span> <span class="id" title="var">mathcomp</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">ssreflect</span> <span class="id" title="var">ssrnat</span> <span class="id" title="var">ssrbool</span>.<br/>
+<span class="id" title="keyword">Set</span> <span class="id" title="var">Bullet</span> <span class="id" title="var">Behavior</span> "Strict Subproofs".<br/>
+
+<br/>
+<span class="id" title="var">From</span> <span class="id" title="var">MonadicEffect</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Trees</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab1"></a><h1 class="section">Extrinsic and Intrinsic Proofs</h1>
+
+
+<div class="paragraph"> </div>
+
+    There are two types of proofs: <i>extrinsic</i> ones and <i>intrisic</i>
+    ones. An extrinsic proof is what most people familiar with in Coq:
+    you write down a function, and then prove some properties about
+    it. In a intrinsic proof, however, you write the properties in the
+    type of the function.
+
+<div class="paragraph"> </div>
+
+    Let's just jump into an example to show what they look like. We
+    start with the more familiar extrinsic approach. 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">ExtrinsicProof</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+We import state monads from coq-ext-lib. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="var">From</span> <span class="id" title="var">ExtLib</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Structures.Monads</span> <span class="id" title="var">Data.Monads.StateMonad</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Import</span> <span class="id" title="var">MonadNotation</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Local Open</span> <span class="id" title="keyword">Scope</span> <span class="id" title="var">monad_scope</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Consider the following <span class="inlinecode"><span class="id" title="var">relabel</span></span> function. It labels all leaves
+      in a tree in with <span class="inlinecode"><span class="id" title="var">nat</span></span>s in an increasing order. It maintains a
+      counter using the state monad. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Fixpoint</span> <span class="id" title="var">relabel</span> (<span class="id" title="var">t</span> : <span class="id" title="var">Tree</span> <span class="id" title="var">A</span>) : <span class="id" title="var">state</span> <span class="id" title="var">nat</span> (<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">match</span> <span class="id" title="var">t</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">Leaf</span> <span class="id" title="var">x</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">n</span> &lt;- <span class="id" title="var">get</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">put</span> (<span class="id" title="var">n</span> + 1) ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Leaf</span> <span class="id" title="var">n</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;| <span class="id" title="var">Node</span> <span class="id" title="var">l</span> <span class="id" title="var">r</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">l'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">l</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">r'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">r</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Node</span> <span class="id" title="var">l'</span> <span class="id" title="var">r'</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Now we can write down a specification of this function and prove
+      it. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Theorem</span> <span class="id" title="var">relabel_spec</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">t</span> <span class="id" title="var">s</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span>: (<span class="id" title="var">t'</span>, <span class="id" title="var">s'</span>) := <span class="id" title="var">runState</span> (<span class="id" title="var">relabel</span> <span class="id" title="var">t</span>) <span class="id" title="var">s</span> <span class="id" title="keyword">in</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">s'</span> = <span class="id" title="var">s</span> + <span class="id" title="var">size</span> <span class="id" title="var">t'</span> /\ <span class="id" title="var">flatten</span> <span class="id" title="var">t'</span> = <span class="id" title="var">seq</span> <span class="id" title="var">s</span> (<span class="id" title="var">size</span> <span class="id" title="var">t'</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Proof</span>.<br/>
+</div>
+
+<div class="doc">
+The proof starts by doing induction on the tree. The <span class="inlinecode"><span class="id" title="var">Leaf</span></span>
+        case is trivial, and can be dischagred automatically. 
+</div>
+<div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">elim</span> =&gt; // =&gt; <span class="id" title="var">l</span> <span class="id" title="var">IHt1</span> <span class="id" title="var">r</span> <span class="id" title="var">IHt2</span> <span class="id" title="var">s</span>.<br/>
+</div>
+
+<div class="doc">
+In the <span class="inlinecode"><span class="id" title="var">Node</span></span> case, we do some rewriting to expose the
+        computation on left and right children, so we can use our
+        induction hypotheses. 
+</div>
+<div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">rewrite</span> /<span class="id" title="var">relabel</span> /= -/<span class="id" title="var">relabel</span>.<br/>
+</div>
+
+<div class="doc">
+Now we need a bit boilerplates to destruct the <span class="inlinecode"><span class="id" title="keyword">let</span></span>s
+        generated from <span class="inlinecode"><span class="id" title="var">bind</span></span>s, and pass the states through. 
+</div>
+<div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">specialize</span> (<span class="id" title="var">IHt1</span> <span class="id" title="var">s</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="var">runState</span> (<span class="id" title="var">relabel</span> <span class="id" title="var">l</span>) <span class="id" title="var">s</span>) <span class="id" title="keyword">as</span> [<span class="id" title="var">t'</span> <span class="id" title="var">s'</span>].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">specialize</span> (<span class="id" title="var">IHt2</span> <span class="id" title="var">s'</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">destruct</span> (<span class="id" title="var">runState</span> (<span class="id" title="var">relabel</span> <span class="id" title="var">r</span>) <span class="id" title="var">s'</span>) <span class="id" title="keyword">as</span> [<span class="id" title="var">t''</span> <span class="id" title="var">s''</span>].<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">split</span> =&gt; /=; <span class="id" title="tactic">intuition</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">addnA</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">H0</span> <span class="id" title="var">H2</span> <span class="id" title="var">seq_split</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Qed</span>.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">ExtrinsicProof</span>.<br/>
+</div>
+
+<div class="doc">
+The proof is quite standard. There are a bit boilerplates with
+      <span class="inlinecode"><span class="id" title="var">bind</span></span>s. Can we make use of the monadic structure to propagate
+      the proof?
+
+<div class="paragraph"> </div>
+
+      The intrinsic approach offers one solution to that. Let's see
+      how we prove the same thing in that style. 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">IntrinsicProof</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Here we use something called <span class="inlinecode"><span class="id" title="var">Dijkstra</span></span> monads we have already
+      defined. We will show to define it later. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="var">From</span> <span class="id" title="var">MonadicEffect</span> <span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Dijkstra</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+This time, we enhance the type of the <span class="inlinecode"><span class="id" title="var">relabel</span></span> function, by
+      putting a pre- and post-condition in its type. By using the
+      <span class="inlinecode"><span class="id" title="var">Program</span></span> feature provided by Coq, we can define this function
+      with the function body exactly the same as before. One
+      difference is that now Coq will ask us to prove that the result
+      of this function indeed satisfies the post-condition. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Program Fixpoint</span> <span class="id" title="var">relabel</span> {<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>} (<span class="id" title="var">t</span> : <span class="id" title="var">Tree</span> <span class="id" title="var">A</span>) :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ST</span> <span class="id" title="var">nat</span> <span class="id" title="keyword">return</span> (<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">requires</span> [<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">True</span>]<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ensures</span>  [<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> <span class="id" title="var">t</span> <span class="id" title="var">s'</span> =&gt; <span class="id" title="var">s'</span> = <span class="id" title="var">s</span> + <span class="id" title="var">size</span> <span class="id" title="var">t</span> /\ <span class="id" title="var">flatten</span> <span class="id" title="var">t</span> = <span class="id" title="var">seq</span> <span class="id" title="var">s</span> (<span class="id" title="var">size</span> <span class="id" title="var">t</span>)] :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">match</span> <span class="id" title="var">t</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">Leaf</span> <span class="id" title="var">x</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">n</span> &lt;- <span class="id" title="var">get</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">put</span> (<span class="id" title="var">n</span> + 1) ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Leaf</span> <span class="id" title="var">n</span>)<br/>
+&nbsp;&nbsp;| <span class="id" title="var">Node</span> <span class="id" title="var">l</span> <span class="id" title="var">r</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">l'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">l</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">r'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">r</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Node</span> <span class="id" title="var">l'</span> <span class="id" title="var">r'</span>)<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+</div>
+
+<div class="doc">
+Coq will try to automatically prove some simple proof
+      obligations for us. For this function, the case when <span class="inlinecode"><span class="id" title="var">t</span></span> is a
+      <span class="inlinecode"><span class="id" title="var">Leaf</span></span> is trivial, so Coq has already proved it for us.
+
+<div class="paragraph"> </div>
+
+      We only need to consider the case when <span class="inlinecode"><span class="id" title="var">t</span></span> is a <span class="inlinecode"><span class="id" title="var">Node</span></span>. The
+      proof is quite similar to the last part of the extrinsic
+      proof. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">repeat</span> <span class="id" title="tactic">split</span> =&gt; //.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">intros</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">H0</span>; <span class="id" title="tactic">destruct</span> <span class="id" title="var">H</span>; <span class="id" title="tactic">subst</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <span class="id" title="var">x1</span>. <span class="id" title="tactic">split</span> =&gt; /=.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">addnA</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">H2</span> <span class="id" title="var">H1</span> <span class="id" title="var">seq_split</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Defined</span>.<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">IntrinsicProof</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab2"></a><h1 class="section">Intrinsic Proofs in Coq</h1>
+
+
+<div class="paragraph"> </div>
+
+    Before we jump into the details how the above example is
+    implemented in Coq, let's check a little bit technical details in
+    Coq. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Section</span> <span class="id" title="var">IntrinsicProof</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="var">Fail</span> <span class="id" title="keyword">Definition</span> <span class="id" title="var">sqr</span> (<span class="id" title="var">x</span> : <span class="id" title="var">nat</span>) : { <span class="id" title="var">s</span> : <span class="id" title="var">nat</span> | <span class="id" title="var">s</span> = <span class="id" title="var">x</span> * <span class="id" title="var">x</span> } :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">x</span> * <span class="id" title="var">x</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Print</span> <span class="id" title="var">sig</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The signature of subset types:
+<pre>
+Inductive sig (A : Type) (P : A -&gt; Prop) : Type :=
+    exist : forall x : A, P x -&gt; {x : A | P x}
+
+For sig: Argument A is implicit
+For exist: Argument A is implicit
+For sig: Argument scopes are [type_scope type_scope]
+For exist: Argument scopes are [type_scope function_scope _ _] 
+</pre>
+ 
+</div>
+<div class="code">
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">sqr</span> (<span class="id" title="var">x</span> : <span class="id" title="var">nat</span>) : { <span class="id" title="var">s</span> : <span class="id" title="var">nat</span> | <span class="id" title="var">s</span> = <span class="id" title="var">x</span> * <span class="id" title="var">x</span> } :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">exist</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> =&gt; <span class="id" title="var">s</span> = <span class="id" title="var">x</span> * <span class="id" title="var">x</span>) (<span class="id" title="var">x</span> * <span class="id" title="var">x</span>) <span class="id" title="var">eq_refl</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Reset</span> <span class="id" title="var">sqr</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">sqr</span> (<span class="id" title="var">x</span> : <span class="id" title="var">nat</span>) : { <span class="id" title="var">s</span> : <span class="id" title="var">nat</span> | <span class="id" title="var">s</span> = <span class="id" title="var">x</span> * <span class="id" title="var">x</span> }.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">refine</span> (<span class="id" title="var">exist</span> <span class="id" title="var">_</span> (<span class="id" title="var">x</span> * <span class="id" title="var">x</span>) <span class="id" title="var">_</span>).<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">reflexivity</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Reset</span> <span class="id" title="var">sqr</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Coq's <span class="inlinecode"><span class="id" title="var">Program</span></span> feature allows us to program with subset types
+      without worrying about passing the proof objects. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">sqr</span> (<span class="id" title="var">x</span> : <span class="id" title="var">nat</span>) : { <span class="id" title="var">s</span> : <span class="id" title="var">nat</span> | <span class="id" title="var">s</span> = <span class="id" title="var">x</span> * <span class="id" title="var">x</span> } := <span class="id" title="var">x</span> * <span class="id" title="var">x</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">IntrinsicProof</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Require</span> <span class="id" title="keyword">Import</span> <span class="id" title="var">Program</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab3"></a><h1 class="section">The Hoare State Monad</h1>
+
+
+<div class="paragraph"> </div>
+
+    Most of this section is based on <span class="inlinecode"><span class="id" title="var">Swierstra</span>,</span> <span class="inlinecode"><span class="id" title="var">W</span>.</span> <span class="inlinecode">(2009).</span> <span class="inlinecode"><span class="id" title="var">A</span></span> <span class="inlinecode"><span class="id" title="var">Hoare</span></span>
+    <span class="inlinecode"><span class="id" title="var">Logic</span></span> <span class="inlinecode"><span class="id" title="keyword">for</span></span> <span class="inlinecode"><span class="id" title="var">the</span></span> <span class="inlinecode"><span class="id" title="var">State</span></span> <span class="inlinecode"><span class="id" title="var">Monad</span></span>. 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">HoareStateMonads</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variable</span> <span class="id" title="var">S</span> : <span class="id" title="keyword">Set</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">Pre</span> : <span class="id" title="keyword">Type</span> := <span class="id" title="var">S</span> -&gt; <span class="id" title="keyword">Prop</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">Post</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>) : <span class="id" title="keyword">Type</span> := <span class="id" title="var">S</span> -&gt; <span class="id" title="var">A</span> -&gt; <span class="id" title="var">S</span> -&gt; <span class="id" title="keyword">Prop</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">HoareState</span> (<span class="id" title="var">pre</span> : <span class="id" title="var">Pre</span>) (<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>) (<span class="id" title="var">post</span> : <span class="id" title="var">Post</span> <span class="id" title="var">A</span>) : <span class="id" title="keyword">Set</span> :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">forall</span> <span class="id" title="var">s</span>: { <span class="id" title="var">s</span> : <span class="id" title="var">S</span> | <span class="id" title="var">pre</span> <span class="id" title="var">s</span> }, { (<span class="id" title="var">a</span>, <span class="id" title="var">s'</span>) : <span class="id" title="var">A</span> * <span class="id" title="var">S</span> | <span class="id" title="var">post</span> <span class="id" title="var">s</span> <span class="id" title="var">a</span> <span class="id" title="var">s'</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">top</span> : <span class="id" title="var">Pre</span> := <span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">True</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Recall the type of <span class="inlinecode"><span class="id" title="var">ret</span></span> for an ordinary state monad is
+
+<div class="paragraph"> </div>
+
+      <tt>
+      A -&gt; state S A
+      </tt> 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">ret</span> (<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>) :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">forall</span> <span class="id" title="var">a</span>, <span class="id" title="var">HoareState</span> <span class="id" title="var">top</span> <span class="id" title="var">A</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> <span class="id" title="var">a'</span> <span class="id" title="var">s'</span> =&gt; <span class="id" title="var">s</span> = <span class="id" title="var">s'</span> /\ <span class="id" title="var">a</span> = <span class="id" title="var">a'</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">a</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">a</span>, <span class="id" title="var">s</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Recall the type of <span class="inlinecode"><span class="id" title="var">bind</span></span> for an ordinary state monad is
+
+<div class="paragraph"> </div>
+
+      <tt>state S A -&gt; (A -&gt; state S B) -&gt; state S B </tt>
+<div class="paragraph"> </div>
+
+
+<div class="paragraph"> </div>
+
+      Note the use of dependent type in our second parameter
+      below. The reason is that we would like to refer to <span class="inlinecode"><span class="id" title="var">a</span></span> in the
+      pre- and post-conditions of the second parametr!  
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">bind</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span> <span class="id" title="var">P1</span> <span class="id" title="var">P2</span> <span class="id" title="var">Q1</span> <span class="id" title="var">Q2</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">HoareState</span> <span class="id" title="var">P1</span> <span class="id" title="var">A</span> <span class="id" title="var">Q1</span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="keyword">forall</span> (<span class="id" title="var">a</span> : <span class="id" title="var">A</span>), <span class="id" title="var">HoareState</span> (<span class="id" title="var">P2</span> <span class="id" title="var">a</span>) <span class="id" title="var">B</span> (<span class="id" title="var">Q2</span> <span class="id" title="var">a</span>)) -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">HoareState</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s1</span> =&gt; <span class="id" title="var">P1</span> <span class="id" title="var">s1</span> /\ <span class="id" title="keyword">forall</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span>, <span class="id" title="var">Q1</span> <span class="id" title="var">s1</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span> -&gt; <span class="id" title="var">P2</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">B</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="keyword">fun</span> <span class="id" title="var">s1</span> <span class="id" title="var">a'</span> <span class="id" title="var">s3</span> =&gt; <span class="id" title="tactic">exists</span> <span class="id" title="var">a</span>, <span class="id" title="tactic">exists</span> <span class="id" title="var">s2</span>, <span class="id" title="var">Q1</span> <span class="id" title="var">s1</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span> /\ <span class="id" title="var">Q2</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span> <span class="id" title="var">a'</span> <span class="id" title="var">s3</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">A</span> <span class="id" title="var">B</span> <span class="id" title="var">P1</span> <span class="id" title="var">P2</span> <span class="id" title="var">Q1</span> <span class="id" title="var">Q2</span> <span class="id" title="var">m1</span> <span class="id" title="var">m2</span> <span class="id" title="var">s1</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">let</span>: (<span class="id" title="var">a</span>, <span class="id" title="var">s2</span>) := <span class="id" title="var">m1</span> <span class="id" title="var">s1</span> <span class="id" title="keyword">in</span> <span class="id" title="var">m2</span> <span class="id" title="var">a</span> <span class="id" title="var">s2</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+</div>
+
+<div class="doc">
+The first obligation is proving that <span class="inlinecode"><span class="id" title="var">a</span></span> and <span class="inlinecode"><span class="id" title="var">s2</span></span> satisfies
+        the precontion of <span class="inlinecode"><span class="id" title="var">m2</span></span>. 
+</div>
+<div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">elim</span>: <span class="id" title="var">m1</span> <span class="id" title="var">Heq_anonymous</span> =&gt; <span class="id" title="var">t</span> /= <span class="id" title="var">H0</span> <span class="id" title="var">Heq_anonymous</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span>. <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <span class="id" title="var">p0</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Defined</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+</div>
+
+<div class="doc">
+The second obligation is proving that <span class="inlinecode"><span class="id" title="var">m2</span></span> <span class="inlinecode"><span class="id" title="var">a</span></span> <span class="inlinecode"><span class="id" title="var">s2</span></span> satisfies the
+        post condition of <span class="inlinecode"><span class="id" title="var">bind</span></span>. 
+</div>
+<div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">elim</span> (<span class="id" title="var">m2</span> <span class="id" title="var">a</span>) =&gt; /=. <span class="id" title="tactic">elim</span> =&gt; <span class="id" title="var">a'</span> <span class="id" title="var">s3</span> <span class="id" title="var">H</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">exists</span> <span class="id" title="var">a</span>. <span class="id" title="tactic">exists</span> <span class="id" title="var">s2</span>. <span class="id" title="tactic">split</span>; <span class="id" title="tactic">auto</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">elim</span>: <span class="id" title="var">m1</span> <span class="id" title="var">Heq_anonymous</span> =&gt; <span class="id" title="var">t</span> /= <span class="id" title="var">H0</span> <span class="id" title="var">Heq_anonymous</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span>. <span class="id" title="tactic">by</span> <span class="id" title="tactic">apply</span> <span class="id" title="var">H0</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<span class="inlinecode"><span class="id" title="var">get</span></span> and <span class="inlinecode"><span class="id" title="var">put</span></span> are straightforward. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">get</span> : <span class="id" title="var">HoareState</span> <span class="id" title="var">top</span> <span class="id" title="var">S</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> <span class="id" title="var">a</span> <span class="id" title="var">s'</span> =&gt; <span class="id" title="var">s</span> = <span class="id" title="var">s'</span> /\ <span class="id" title="var">a</span> = <span class="id" title="var">s</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">s</span>, <span class="id" title="var">s</span>).<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">put</span> (<span class="id" title="var">x</span> : <span class="id" title="var">S</span>) : <span class="id" title="var">HoareState</span> <span class="id" title="var">top</span> <span class="id" title="var">unit</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">s'</span> =&gt; <span class="id" title="var">x</span> = <span class="id" title="var">s'</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; (<span class="id" title="var">tt</span>, <span class="id" title="var">x</span>).<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">HoareStateMonads</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+We define some notations to use this monad more easily. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Notation</span> &quot;c &gt;&gt;= f" := (<span class="id" title="var">bind</span> <span class="id" title="var">c</span> <span class="id" title="var">f</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 50, <span class="id" title="tactic">left</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;f =&lt;&lt; c" := (<span class="id" title="var">bind</span> <span class="id" title="var">c</span> <span class="id" title="var">f</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 51, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;x &lt;- c1 ;; c2" := (<span class="id" title="var">bind</span> <span class="id" title="var">c1</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">x</span> =&gt; <span class="id" title="var">c2</span>)) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 100, <span class="id" title="var">c1</span> <span class="id" title="tactic">at</span> <span class="id" title="var">next</span> <span class="id" title="keyword">level</span>, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;e1 ;; e2" := (<span class="id" title="var">_</span> &lt;- <span class="id" title="var">e1</span> ;; <span class="id" title="var">e2</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 100, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Now we can do an intrinsic proof to show that our <span class="inlinecode"><span class="id" title="var">relabel</span></span>
+    function is correct with respect to its specification again. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Program Fixpoint</span> <span class="id" title="var">relabel</span> {<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>} (<span class="id" title="var">t</span> : <span class="id" title="var">Tree</span> <span class="id" title="var">A</span>) :<br/>
+&nbsp;&nbsp;<span class="id" title="var">HoareState</span> <span class="id" title="var">nat</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(@<span class="id" title="var">top</span> <span class="id" title="var">nat</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="keyword">fun</span> <span class="id" title="var">i</span> <span class="id" title="var">t</span> <span class="id" title="var">f</span> =&gt; <span class="id" title="var">f</span> = <span class="id" title="var">i</span> + <span class="id" title="var">size</span> <span class="id" title="var">t</span> /\ <span class="id" title="var">flatten</span> <span class="id" title="var">t</span> = <span class="id" title="var">seq</span> <span class="id" title="var">i</span> (<span class="id" title="var">size</span> <span class="id" title="var">t</span>)) :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">match</span> <span class="id" title="var">t</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">Leaf</span> <span class="id" title="var">x</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">n</span> &lt;- <span class="id" title="var">get</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">put</span> (<span class="id" title="var">n</span> + 1) ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Leaf</span> <span class="id" title="var">n</span>)<br/>
+&nbsp;&nbsp;| <span class="id" title="var">Node</span> <span class="id" title="var">l</span> <span class="id" title="var">r</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">l'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">l</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">r'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">r</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Node</span> <span class="id" title="var">l'</span> <span class="id" title="var">r'</span>)<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">case</span> (<span class="id" title="var">relabel</span> <span class="id" title="var">A</span> <span class="id" title="var">l</span> &gt;&gt;= <span class="id" title="var">_</span>) =&gt; /=.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">case</span>=&gt; <span class="id" title="var">a</span> <span class="id" title="var">s'</span> [<span class="id" title="var">a1</span>] [<span class="id" title="var">s1</span>] [[<span class="id" title="var">H0</span> <span class="id" title="var">H1</span>] <span class="id" title="var">H2</span>].<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">case</span>: <span class="id" title="var">H2</span> =&gt; <span class="id" title="var">a2</span> [<span class="id" title="var">s2</span>] [[<span class="id" title="var">H3</span> <span class="id" title="var">H4</span>] [<span class="id" title="var">H5</span> <span class="id" title="var">H6</span>]].<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">subst</span>. <span class="id" title="tactic">split</span> =&gt; /=.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">addnA</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">H1</span> <span class="id" title="var">H4</span> <span class="id" title="var">seq_split</span>.<br/>
+<span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+<a name="lab4"></a><h1 class="section">Dijkstra Monads</h1>
+
+
+<div class="paragraph"> </div>
+
+    The Hoare state monad we have implemented have a few
+    disadvantages, according to <span class="inlinecode"><span class="id" title="var">Swamy</span>,</span> <span class="inlinecode"><span class="id" title="var">N</span>.,</span> <span class="inlinecode"><span class="id" title="var">Weinberger</span>,</span> <span class="inlinecode"><span class="id" title="var">J</span>.,</span>
+    <span class="inlinecode"><span class="id" title="var">Schlesinger</span>,</span> <span class="inlinecode"><span class="id" title="var">C</span>.,</span> <span class="inlinecode"><span class="id" title="var">Chen</span>,</span> <span class="inlinecode"><span class="id" title="var">J</span>.,</span> <span class="inlinecode">&amp;</span> <span class="inlinecode"><span class="id" title="var">Livshits</span>,</span> <span class="inlinecode"><span class="id" title="var">B</span>.</span> <span class="inlinecode">(2013).</span> <span class="inlinecode"><span class="id" title="var">Verifying</span></span>
+    <span class="inlinecode"><span class="id" title="var">higher</span>-<span class="id" title="var">order</span></span> <span class="inlinecode"><span class="id" title="var">programs</span></span> <span class="inlinecode"><span class="id" title="keyword">with</span></span> <span class="inlinecode"><span class="id" title="var">the</span></span> <span class="inlinecode"><span class="id" title="var">dijkstra</span></span> <span class="inlinecode"><span class="id" title="var">monad</span></span>:
+
+<div class="paragraph"> </div>
+
+<ul class="doclist">
+<li> There are some existential quantifiers in it. Reasoning with
+      these quantifiers, particularly using automated SMT solvers, can
+      be problematic.
+
+<div class="paragraph"> </div>
+
+
+</li>
+<li> It requires the post-condition to be a two-state relation,
+      though sometimes it is not necessary to compare the two states
+      in the specification.
+
+</li>
+</ul>
+
+<div class="paragraph"> </div>
+
+    Therefore, they propose another monad called "Dijkstra monad" to
+    resolve the above issues (name after Edsger W. Dijkstra, for his
+    discoveries in his paper <span class="inlinecode"><span class="id" title="var">Dijkstra</span>,</span> <span class="inlinecode"><span class="id" title="var">E</span>.</span> <span class="inlinecode"><span class="id" title="var">W</span>.</span> <span class="inlinecode">(1975).</span> <span class="inlinecode"><span class="id" title="keyword">Guarded</span></span>
+    <span class="inlinecode"><span class="id" title="var">Commands</span>,</span> <span class="inlinecode"><span class="id" title="var">Nondeterminacy</span></span> <span class="inlinecode"><span class="id" title="var">and</span></span> <span class="inlinecode"><span class="id" title="var">Formal</span></span> <span class="inlinecode"><span class="id" title="var">Derivation</span></span> <span class="inlinecode"><span class="id" title="var">of</span></span> <span class="inlinecode"><span class="id" title="var">Programs</span></span>.
+
+<div class="paragraph"> </div>
+
+    A Dijkstra monad is parameterized over a weakest precondition
+    transformer. It can be seen as a Hoare state monad: 
+</div>
+<div class="code">
+
+<br/>
+<span class="id" title="keyword">Definition</span> <span class="id" title="var">DST</span> <span class="id" title="var">S</span> <span class="id" title="var">A</span> <span class="id" title="var">wp</span> :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">forall</span> <span class="id" title="var">p</span>, <span class="id" title="var">HoareState</span> <span class="id" title="var">S</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">h</span> =&gt; <span class="id" title="var">wp</span> <span class="id" title="var">p</span> <span class="id" title="var">h</span>) <span class="id" title="var">A</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">h</span> <span class="id" title="var">x</span> <span class="id" title="var">h'</span> =&gt; <span class="id" title="var">p</span> <span class="id" title="var">x</span> <span class="id" title="var">h'</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+But let's define it properly. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Reset</span> <span class="id" title="var">HoareStateMonads</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Section</span> <span class="id" title="var">DijkstraMonads</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Variables</span> <span class="id" title="var">S</span> : <span class="id" title="keyword">Set</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+The weakest precondition transformer. As its name suggested, it
+      takes a post-condition and transform it into the weakest
+      precondition. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">Definition</span> <span class="id" title="var">WP</span> {<span class="id" title="var">A</span>} : <span class="id" title="keyword">Type</span> := (<span class="id" title="var">A</span> -&gt; <span class="id" title="var">S</span> -&gt; <span class="id" title="keyword">Prop</span>) -&gt; <span class="id" title="var">S</span> -&gt; <span class="id" title="keyword">Prop</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">DST</span> <span class="id" title="var">A</span> (<span class="id" title="var">wp</span> : <span class="id" title="var">WP</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">forall</span> <span class="id" title="var">p</span>, { <span class="id" title="var">s</span> : <span class="id" title="var">S</span> | <span class="id" title="var">wp</span> <span class="id" title="var">p</span> <span class="id" title="var">s</span> } -&gt; { (<span class="id" title="var">a</span>, <span class="id" title="var">s'</span>) : <span class="id" title="var">A</span> * <span class="id" title="var">S</span> | <span class="id" title="var">p</span> <span class="id" title="var">a</span> <span class="id" title="var">s'</span> }.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">ret</span> { <span class="id" title="var">A</span> } (<span class="id" title="var">a</span> : <span class="id" title="var">A</span>) :<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">DST</span> <span class="id" title="var">A</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> =&gt; <span class="id" title="var">p</span> <span class="id" title="var">a</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">a</span>, <span class="id" title="var">s</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">bind</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">A</span> <span class="id" title="var">wp1</span> <span class="id" title="var">B</span> <span class="id" title="var">wp2</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">DST</span> <span class="id" title="var">A</span> <span class="id" title="var">wp1</span> -&gt; (<span class="id" title="keyword">forall</span> <span class="id" title="var">a</span> : <span class="id" title="var">A</span>, <span class="id" title="var">DST</span> <span class="id" title="var">B</span> (<span class="id" title="var">wp2</span> <span class="id" title="var">a</span>)) -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">DST</span> <span class="id" title="var">B</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> =&gt; <span class="id" title="var">wp1</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">a</span> =&gt; <span class="id" title="var">wp2</span> <span class="id" title="var">a</span> <span class="id" title="var">p</span>)) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">A</span> <span class="id" title="var">wp1</span> <span class="id" title="var">B</span> <span class="id" title="var">wp2</span> <span class="id" title="var">c1</span> <span class="id" title="var">c2</span> <span class="id" title="var">p</span> <span class="id" title="var">s1</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+
+<div class="doc">
+The function body should be
+
+<div class="paragraph"> </div>
+
+          <tt>
+          let: (a, s2) := c1 (fun a =&gt; wp2 a p) s1 in c2 a p s2.
+          </tt>
+<div class="paragraph"> </div>
+
+          But we can also just write this: 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="keyword">let</span>: (<span class="id" title="var">a</span>, <span class="id" title="var">s2</span>) := <span class="id" title="var">c1</span> <span class="id" title="var">_</span> <span class="id" title="var">s1</span> <span class="id" title="keyword">in</span> <span class="id" title="var">c2</span> <span class="id" title="var">a</span> <span class="id" title="var">_</span> <span class="id" title="var">s2</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">elim</span>: <span class="id" title="var">c1</span> <span class="id" title="var">Heq_anonymous</span> =&gt; <span class="id" title="var">a'</span> <span class="id" title="var">H'</span> /= <span class="id" title="var">Heq_anonymous</span>.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="tactic">subst</span>; <span class="id" title="var">done</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">get</span> : <span class="id" title="var">DST</span> <span class="id" title="var">S</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> <span class="id" title="var">s</span> =&gt; <span class="id" title="var">p</span> <span class="id" title="var">s</span> <span class="id" title="var">s</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> <span class="id" title="var">s</span> =&gt; (<span class="id" title="var">s</span>, <span class="id" title="var">s</span>).<br/>
+
+<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">Program Definition</span> <span class="id" title="var">put</span> : <span class="id" title="keyword">forall</span> <span class="id" title="var">s</span>, <span class="id" title="var">DST</span> <span class="id" title="var">unit</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">p</span> <span class="id" title="var">tt</span> <span class="id" title="var">s</span>) :=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">fun</span> <span class="id" title="var">s</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> =&gt; (<span class="id" title="var">tt</span>, <span class="id" title="var">s</span>).<br/>
+
+<br/>
+<span class="id" title="keyword">End</span> <span class="id" title="var">DijkstraMonads</span>.<br/>
+
+<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">ret</span> {<span class="id" title="var">S</span>} {<span class="id" title="var">A</span>}.<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">bind</span> {<span class="id" title="var">S</span>} {<span class="id" title="var">A</span>} {<span class="id" title="var">wp1</span>} {<span class="id" title="var">B</span>} {<span class="id" title="var">wp2</span>}.<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">get</span> {<span class="id" title="var">S</span>}.<br/>
+<span class="id" title="var">Arguments</span> <span class="id" title="var">put</span> {<span class="id" title="var">S</span>}.<br/>
+
+<br/>
+<span class="id" title="keyword">Notation</span> &quot;c &gt;&gt;= f" := (<span class="id" title="var">bind</span> <span class="id" title="var">c</span> <span class="id" title="var">f</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 50, <span class="id" title="tactic">left</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;f =&lt;&lt; c" := (<span class="id" title="var">bind</span> <span class="id" title="var">c</span> <span class="id" title="var">f</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 51, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;x &lt;- c1 ;; c2" := (<span class="id" title="var">bind</span> <span class="id" title="var">c1</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">x</span> =&gt; <span class="id" title="var">c2</span>)) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 100, <span class="id" title="var">c1</span> <span class="id" title="tactic">at</span> <span class="id" title="var">next</span> <span class="id" title="keyword">level</span>, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+<span class="id" title="keyword">Notation</span> &quot;e1 ;; e2" := (<span class="id" title="var">_</span> &lt;- <span class="id" title="var">e1</span> ;; <span class="id" title="var">e2</span>) (<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 100, <span class="id" title="tactic">right</span> <span class="id" title="keyword">associativity</span>).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Let's see how it works with our <span class="inlinecode"><span class="id" title="var">relabel</span></span> function: 
+</div>
+<div class="code">
+<span class="id" title="keyword">Program Fixpoint</span> <span class="id" title="var">relabel</span> {<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>} (<span class="id" title="var">t</span> : <span class="id" title="var">Tree</span> <span class="id" title="var">A</span>) :<br/>
+&nbsp;&nbsp;<span class="id" title="var">DST</span> <span class="id" title="var">nat</span> (<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>) (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> <span class="id" title="var">s</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="keyword">forall</span> <span class="id" title="var">t</span> <span class="id" title="var">s'</span>, <span class="id" title="var">s'</span> = <span class="id" title="var">s</span> + <span class="id" title="var">size</span> <span class="id" title="var">t</span> /\ <span class="id" title="var">flatten</span> <span class="id" title="var">t</span> = <span class="id" title="var">seq</span> <span class="id" title="var">s</span> (<span class="id" title="var">size</span> <span class="id" title="var">t</span>) -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">p</span> <span class="id" title="var">t</span> <span class="id" title="var">s'</span> ) :=<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">match</span> <span class="id" title="var">t</span> <span class="id" title="keyword">with</span><br/>
+&nbsp;&nbsp;| <span class="id" title="var">Leaf</span> <span class="id" title="var">x</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">n</span> &lt;- <span class="id" title="var">get</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">put</span> (<span class="id" title="var">n</span> + 1) ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Leaf</span> <span class="id" title="var">n</span>)<br/>
+&nbsp;&nbsp;| <span class="id" title="var">Node</span> <span class="id" title="var">l</span> <span class="id" title="var">r</span> =&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">l'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">l</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">r'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">r</span> ;;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Node</span> <span class="id" title="var">l'</span> <span class="id" title="var">r'</span>)<br/>
+&nbsp;&nbsp;<span class="id" title="keyword">end</span>.<br/>
+<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+</div>
+
+<div class="doc">
+We show the function satisfies the post-condition. To do that,
+      we show that it satisfies the weakest precondition. 
+</div>
+<div class="code">
+&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <span class="id" title="var">H3</span>. <span class="id" title="tactic">split</span> =&gt; /=.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">addnA</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">H2</span> <span class="id" title="var">H1</span> <span class="id" title="var">seq_split</span>.<br/>
+<span class="id" title="keyword">Defined</span>.<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Writing with weakest precondition transformer can sometimes be
+    hard. We can define some notations to make it more intuitive. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Reset</span> <span class="id" title="var">relabel</span>.<br/>
+
+<br/>
+<span class="id" title="keyword">Notation</span> &quot;'ST' s 'return' a 'requires' [ P ] 'ensures' [ Q ]" :=<br/>
+&nbsp;&nbsp;(<span class="id" title="var">DST</span> <span class="id" title="var">s</span> <span class="id" title="var">a</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> <span class="id" title="var">s1</span> =&gt; <span class="id" title="var">P</span> <span class="id" title="var">s1</span> /\ (<span class="id" title="keyword">forall</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span>, <span class="id" title="var">Q</span> <span class="id" title="var">s1</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span> -&gt; <span class="id" title="var">p</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span>)))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 99, <span class="id" title="var">P</span> <span class="id" title="tactic">at</span> <span class="id" title="var">next</span> <span class="id" title="keyword">level</span>, <span class="id" title="var">Q</span> <span class="id" title="tactic">at</span> <span class="id" title="var">next</span> <span class="id" title="keyword">level</span>).<br/>
+
+<br/>
+<span class="id" title="keyword">Notation</span> &quot;'ST' s 'return' a 'ensures' [ Q ]" :=<br/>
+&nbsp;&nbsp;(<span class="id" title="var">DST</span> <span class="id" title="var">s</span> <span class="id" title="var">a</span> (<span class="id" title="keyword">fun</span> <span class="id" title="var">p</span> <span class="id" title="var">s1</span> =&gt; <span class="id" title="keyword">forall</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span>, <span class="id" title="var">Q</span> <span class="id" title="var">s1</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span> -&gt; <span class="id" title="var">p</span> <span class="id" title="var">c</span> <span class="id" title="var">s2</span>))<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id" title="tactic">at</span> <span class="id" title="keyword">level</span> 99, <span class="id" title="var">Q</span> <span class="id" title="tactic">at</span> <span class="id" title="var">next</span> <span class="id" title="keyword">level</span>).<br/>
+
+<br/>
+<span class="id" title="keyword">Check</span> (<span class="id" title="var">ST</span> <span class="id" title="var">nat</span> <span class="id" title="keyword">return</span> (<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>) <span class="id" title="var">requires</span> [<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">True</span>] <span class="id" title="var">ensures</span> [<span class="id" title="keyword">fun</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> <span class="id" title="var">_</span> =&gt; <span class="id" title="var">True</span>]).<br/>
+
+<br/>
+</div>
+
+<div class="doc">
+Now the specification for <span class="inlinecode"><span class="id" title="var">relabel</span></span> looks quite similar to that in
+    the form of a Hoare state monad, but notice that the proof is
+    simpler than that for a Hoare state monad. 
+</div>
+<div class="code">
+<span class="id" title="keyword">Program Fixpoint</span> <span class="id" title="var">relabel</span> {<span class="id" title="var">A</span> : <span class="id" title="keyword">Set</span>} (<span class="id" title="var">t</span> : <span class="id" title="var">Tree</span> <span class="id" title="var">A</span>) :<br/>
+&nbsp;&nbsp;<span class="id" title="var">ST</span> <span class="id" title="var">nat</span> <span class="id" title="keyword">return</span> (<span class="id" title="var">Tree</span> <span class="id" title="var">nat</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id" title="var">ensures</span>  [<span class="id" title="keyword">fun</span> <span class="id" title="var">i</span> <span class="id" title="var">t</span> <span class="id" title="var">f</span> =&gt; <span class="id" title="var">f</span> = <span class="id" title="var">i</span> + <span class="id" title="var">size</span> <span class="id" title="var">t</span> /\ <span class="id" title="var">flatten</span> <span class="id" title="var">t</span> = <span class="id" title="var">seq</span> <span class="id" title="var">i</span> (<span class="id" title="var">size</span> <span class="id" title="var">t</span>)] :=<br/>
+<span class="id" title="keyword">match</span> <span class="id" title="var">t</span> <span class="id" title="keyword">with</span><br/>
+| <span class="id" title="var">Leaf</span> <span class="id" title="var">x</span> =&gt;<br/>
+&nbsp;&nbsp;<span class="id" title="var">n</span> &lt;- <span class="id" title="var">get</span> ;;<br/>
+&nbsp;&nbsp;<span class="id" title="var">put</span> (<span class="id" title="var">n</span> + 1) ;;<br/>
+&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Leaf</span> <span class="id" title="var">n</span>)<br/>
+| <span class="id" title="var">Node</span> <span class="id" title="var">l</span> <span class="id" title="var">r</span> =&gt;<br/>
+&nbsp;&nbsp;<span class="id" title="var">l'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">l</span> ;;<br/>
+&nbsp;&nbsp;<span class="id" title="var">r'</span> &lt;- <span class="id" title="var">relabel</span> <span class="id" title="var">r</span> ;;<br/>
+&nbsp;&nbsp;<span class="id" title="var">ret</span> (<span class="id" title="var">Node</span> <span class="id" title="var">l'</span> <span class="id" title="var">r'</span>)<br/>
+<span class="id" title="keyword">end</span>.<br/>
+<span class="id" title="keyword">Next</span> <span class="id" title="keyword">Obligation</span>.<br/>
+&nbsp;&nbsp;<span class="id" title="tactic">apply</span> <span class="id" title="var">H3</span>. <span class="id" title="tactic">split</span> =&gt; /=.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">addnA</span>.<br/>
+&nbsp;&nbsp;- <span class="id" title="tactic">by</span> <span class="id" title="tactic">rewrite</span> <span class="id" title="var">H2</span> <span class="id" title="var">H1</span> <span class="id" title="var">seq_split</span>.<br/>
+<span class="id" title="keyword">Defined</span>.<br/>
+</div>
+</div>
+
+<div id="footer">
+<hr/><a href="index.html">Index</a><hr/>This page has been generated by <a href="http://coq.inria.fr/">coqdoc</a>
+</div>
+
+</div>
+
+</body>
+</html>
