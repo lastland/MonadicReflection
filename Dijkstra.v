@@ -66,15 +66,15 @@ Defined.
 Reset relabel.
 
 Notation "'ST' s 'return' a 'requires' [ P ] 'ensures' [ Q ]" :=
-  (DST s a (fun p s1 => P /\ (forall c s2, Q s1 c s2 -> p c s2)))
+  (DST s a (fun p s1 => P s1 /\ (forall c s2, Q s1 c s2 -> p c s2)))
     (at level 99, P at next level, Q at next level).
 
-Check (ST nat return (Tree nat) requires [True] ensures [fun _ _ _ => True]).
+Check (ST nat return (Tree nat) requires [fun _ => True] ensures [fun _ _ _ => True]).
 
 Program Fixpoint relabel {A : Set} (t : Tree A) :
   ST nat return (Tree nat)
-                requires [True]
-                ensures [fun i t f => f = i + size t /\ flatten t = seq i (size t)] :=
+                requires [fun _ => True]
+                ensures  [fun i t f => f = i + size t /\ flatten t = seq i (size t)] :=
   match t with
   | Leaf x =>
     n <- get ;;
@@ -92,3 +92,5 @@ Next Obligation.
   - by rewrite addnA.
   - by rewrite H2 H1 seq_split.
 Defined.
+
+Reset relabel.

@@ -72,6 +72,7 @@ Arguments DST.ret {S} {A}.
 Arguments DST.bind {S} {A} {wp1} {B} {wp2}.
 Arguments DST.get {S}.
 Arguments DST.put {S}.
+Arguments DST.reify {S} {A} {wp}.
 
 Notation "c >>= f" := (DST.bind c f) (at level 50, left associativity).
 Notation "f =<< c" := (DST.bind c f) (at level 51, right associativity).
@@ -108,3 +109,5 @@ Next Obligation.
   - by rewrite addnA.
   - by rewrite H4 H5 seq_split.
 Defined.
+
+Compute (reify (relabel (Node (Leaf 1) (Leaf 1))) 10).
