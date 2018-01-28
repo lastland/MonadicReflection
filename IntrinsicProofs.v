@@ -203,7 +203,7 @@ Section HoareStateMonads.
       (forall (a : A), HoareState (P2 a) B (Q2 a)) ->
       HoareState (fun s1 => P1 s1 /\ forall a s2, Q1 s1 a s2 -> P2 a s2)
                   B
-                  (fun s1 a' s3 => exists a, exists s2, Q1 s1 a s2 /\ Q2 a s2 a' s3) :=
+                  (fun s1 b s3 => exists a, exists s2, Q1 s1 a s2 /\ Q2 a s2 b s3) :=
     fun A B P1 P2 Q1 Q2 m1 m2 s1 =>
       let: (a, s2) := m1 s1 in m2 a s2.
   Next Obligation.
@@ -347,9 +347,9 @@ Notation "e1 ;; e2" := (_ <- e1 ;; e2) (at level 100, right associativity).
 
 (** Let's see how it works with our [relabel] function: *)
 Program Fixpoint relabel {A : Set} (t : Tree A) :
-  DST nat (Tree nat) (fun p s =>
+  DST nat (Tree nat) (fun post s =>
                     forall t s', s' = s + size t /\ flatten t = seq s (size t) ->
-                    p t s' ) :=
+                    post t s' ) :=
   match t with
   | Leaf x =>
     n <- get ;;
